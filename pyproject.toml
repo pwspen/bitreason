@@ -1,0 +1,11 @@
+[project]
+name = "bitreason"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.10.6",
+    "torch>=2.8.0",
+    "tqdm>=4.67.1",
+]
