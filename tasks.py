@@ -21,7 +21,15 @@ class TaskCollection:
     ) -> None:
         # Add validation here that each task function is applicable for current settings (lengths, numbers of categories)
 
-        self.task_list = [Task(transform=func) for func in task_func_list]
+        self.task_list = [
+            Task(
+                transform=func,
+                train_pairs=train_samples,
+                test_pairs=test_samples,
+                categories=categories,
+            )
+            for func in task_func_list
+        ]
         self.train_samples = train_samples
         self.test_samples = test_samples
         self.categories = categories
@@ -42,6 +50,9 @@ class TaskCollection:
                 task.evaluate,
                 task.name,
             )
+
+    def __len__(self) -> int:
+        return len(self.task_list)
 
 
 class Task:

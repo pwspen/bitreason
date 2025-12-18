@@ -1,17 +1,33 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Sequence
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
 from tqdm import tqdm
-from typing import Callable
 
-from tasks import TaskCollection, Pair
+from sweep import (
+    AggregateMetrics,
+    ParameterSpec,
+    RunConfig,
+    SweepLogger,
+    SweepResult,
+    TaskMetrics,
+    expand_grid,
+    load_results,
+)
+from sweep_plotting import plot_param_curves
 from task_list import task_list
+from tasks import Pair, TaskCollection
 
 
 # Simple neural network
 class BitNet(nn.Module):
-    def __init__(self, size):
+    def __init__(self, size: int) -> None:
         super().__init__()
         hsize = 64
         hlayers = 2
@@ -27,30 +43,40 @@ class BitNet(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         return self.net(x)
 
 
-# Training function with tqdm
+@dataclass
+class TrainingRun:
+    net: BitNet
+    losses: list[float]
+    pixel_accuracies: list[tuple[int, float]]
+    pair_accuracies: list[tuple[int, float]]
+
+
 def train_net(
     train_pairs: tuple[Pair, ...],
-    eval_fn: Callable,
-    task_name,
-    epochs=100,
-    test_every=10,
-):
+    eval_fn: Callable[[Callable[[tuple[int, ...]], tuple[int, ...]]], tuple[float, float]],
+    task_name: str,
+    *,
+    epochs: int,
+    test_every: int,
+    lr: float,
+) -> TrainingRun:
     net = BitNet(size=16)
-    optimizer = optim.Adam(net.parameters(), lr=0.01)
+    optimizer = optim.Adam(net.parameters(), lr=lr)
     criterion = nn.MSELoss()
 
-    losses = []  # [loss]
-    accuracies = []  # [(epoch, acc)]
-    solverates = []  # [(epoch, solverate)]
+    losses: list[float] = []
+    pixel_accuracies: list[tuple[int, float]] = []
+    pair_accuracies: list[tuple[int, float]] = []
 
-    pbar = tqdm(range(epochs), desc=f"Training {task_name}")
+    pbar = tqdm(range(epochs), desc=f"Training {task_name}", leave=False)
+    num_pairs = max(len(train_pairs), 1)
 
     for epoch in pbar:
-        batch_loss = 0
+        batch_loss = 0.0
         for pair in train_pairs:
             inp, out = pair.input, pair.output
             inp_t = torch.tensor(inp, dtype=torch.float32)
@@ -63,13 +89,13 @@ def train_net(
             loss.backward()
             optimizer.step()
 
-            batch_loss += loss.item()
+            batch_loss += float(loss.item())
 
-        avg_loss = batch_loss / train_samples
+        avg_loss = batch_loss / num_pairs
         losses.append(avg_loss)
         pbar.set_postfix({"Loss": f"{avg_loss:.4f}"})
 
-        if epoch % test_every == 0:
+        if epoch % test_every == 0 or epoch == epochs - 1:
             with torch.no_grad():
                 solve_fn = lambda inp: tuple(
                     int(x)
@@ -80,61 +106,134 @@ def train_net(
                 )
                 pixel_acc, pair_acc = eval_fn(solve_fn)
 
-            accuracies.append((epoch, pixel_acc))
-            solverates.append((epoch, pair_acc))
+            pixel_accuracies.append((epoch, float(pixel_acc)))
+            pair_accuracies.append((epoch, float(pair_acc)))
 
-    return net, losses, accuracies, solverates
-
-
-# Train networks and plot results
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
-print("Training networks...")
-train_samples = 100
-test_samples = 1000
-
-all_tasks = TaskCollection(task_list, train_samples=train_samples, test_samples=test_samples)
-
-for pairs, eval_fn, task_name in tqdm(all_tasks.tasks(), desc="Tasks Completed", total=len(task_list)):
-    net, losses, accuracies, solverates = train_net(
-        train_pairs=pairs, eval_fn=eval_fn, task_name=task_name
+    return TrainingRun(
+        net=net,
+        losses=losses,
+        pixel_accuracies=pixel_accuracies,
+        pair_accuracies=pair_accuracies,
     )
 
-    # Plot losses
-    ax1.plot(range(len(losses)), losses, label=task_name, linewidth=2)
 
-    # Plot accuracies
-    epochs_acc, accs = zip(*accuracies)
-    ax2.plot(epochs_acc, accs, label=task_name, linewidth=2)
+def run_config(
+    config: RunConfig,
+    *,
+    task_funcs: Sequence[Callable[[tuple[int, ...]], Sequence[int]]],
+    test_samples: int,
+    epochs: int,
+    test_every: int,
+    lr: float,
+) -> SweepResult:
+    train_samples = int(config.get("train_samples"))
+    started = time.time()
 
-    # Plot solve rates
-    epochs_solve, solve_rates = zip(*solverates)
-    ax3.plot(epochs_solve, solve_rates, label=task_name, linewidth=2)
+    collection = TaskCollection(
+        task_funcs,
+        train_samples=train_samples,
+        test_samples=test_samples,
+    )
 
-# Configure loss subplot
-ax1.set_title("Training Loss")
-ax1.set_xlabel("Epoch")
-ax1.set_ylabel("Loss")
-ax1.set_yscale("log")
-ax1.grid(True, alpha=0.7)
-ax1.legend()
+    task_metrics: list[TaskMetrics] = []
+    task_iter = collection.tasks()
 
-# Configure accuracy subplot
-ax2.set_title(f"Test Accuracy")
-ax2.set_xlabel("Epoch")
-ax2.set_ylabel("Accuracy")
-ax2.set_ylim(0, 1)
-ax2.grid(True, alpha=0.7)
-ax2.legend()
+    for pairs, eval_fn, task_name in tqdm(
+        task_iter,
+        desc="Tasks",
+        total=len(collection),
+        leave=False,
+    ):
+        training = train_net(
+            train_pairs=pairs,
+            eval_fn=eval_fn,
+            task_name=task_name,
+            epochs=epochs,
+            test_every=test_every,
+            lr=lr,
+        )
 
-# Configure solve rate subplot
-ax3.set_title("Test Solve Rate")
-ax3.set_xlabel("Epoch")
-ax3.set_ylabel("Solve Rate")
-ax3.set_ylim(0, 1)
-ax3.grid(True, alpha=0.7)
-ax3.legend()
+        with torch.no_grad():
+            solve_fn = lambda inp: tuple(
+                int(x)
+                for x in training.net(torch.tensor(inp, dtype=torch.float32))
+                .round()
+                .int()
+                .tolist()
+            )
+            pixel_acc, pair_acc = eval_fn(solve_fn)
 
-fig.suptitle(f"Neural net per task (Train pairs: {train_samples} | Test pairs: {test_samples})")
+        final_loss = training.losses[-1] if training.losses else float("nan")
+        task_metrics.append(
+            TaskMetrics(
+                task_name=task_name,
+                final_loss=final_loss,
+                pixel_accuracy=float(pixel_acc),
+                pair_accuracy=float(pair_acc),
+                loss_curve=training.losses,
+                pixel_accuracy_curve=training.pixel_accuracies,
+                pair_accuracy_curve=training.pair_accuracies,
+            )
+        )
 
-plt.tight_layout()
-plt.savefig("training_metrics.png", dpi=300, bbox_inches="tight")
+    aggregate = AggregateMetrics.from_tasks(task_metrics)
+    finished = time.time()
+    return SweepResult(
+        config=config,
+        tasks=task_metrics,
+        aggregate=aggregate,
+        started_at=started,
+        finished_at=finished,
+    )
+
+
+def main() -> None:
+    sweep_specs = [
+        ParameterSpec(name="train_samples", values=[10, 25, 50, 100]),
+    ]
+    configs = expand_grid(sweep_specs)
+
+    log_path = Path("results/train_samples_sweep.jsonl")
+    plot_path = Path("results/train_samples_sweep.png")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.unlink(missing_ok=True)
+
+    logger = SweepLogger(log_path)
+    sweep_results: list[SweepResult] = []
+
+    for config in tqdm(configs, desc="Sweep (train_samples)", total=len(configs)):
+        try:
+            result = run_config(
+                config,
+                task_funcs=task_list,
+                test_samples=200,
+                epochs=100,
+                test_every=10,
+                lr=0.01,
+            )
+        except Exception as exc:  # noqa: BLE001
+            now = time.time()
+            result = SweepResult(
+                config=config,
+                tasks=[],
+                aggregate=AggregateMetrics.from_tasks([]),
+                started_at=now,
+                finished_at=now,
+                error=str(exc),
+            )
+        logger.append(result)
+        sweep_results.append(result)
+
+    # Reload from disk to ensure plotting matches what was logged
+    logged_results = load_results(log_path)
+    plot_param_curves(
+        logged_results,
+        param_name="train_samples",
+        output_path=plot_path,
+        title="Sweep: Train Samples",
+    )
+    print(f"Sweep complete. Logged to {log_path} and plotted to {plot_path}.")
+
+
+if __name__ == "__main__":
+    main()
