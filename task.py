@@ -17,6 +17,8 @@ class Task:
         for template in templates:
             if len(template) != self.template_len:
                 raise ValueError(f"All templates must be of length {self.template_len}")
+            if set(template) - {0, 1, None}:
+                raise ValueError("Templates must only contain 0, 1, or None")
         self.templates = templates
         self.transform = transform
 
@@ -61,4 +63,8 @@ class Task:
     def get_pair(self, example: bool, index: int) -> tuple[list[int], list[int]]:
         inp = self.generate(example, index)
         out = self.transform(inp)
+        if len(out) != self.template_len:
+            raise ValueError(f"Transform function must return list of length {self.template_len}")
+        if set(out) - {0, 1}:
+            raise ValueError("Transform function must return list of 0s and 1s only")
         return inp, out
