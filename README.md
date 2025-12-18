@@ -19,4 +19,4 @@ The goal here is to provide a playground to build intuition and evidence for how
 
 If you make a model for ARC and it works well it might be pretty opaque. What parts of it contribute to its success? The goal here is to give you ways to examine that.
 
-This can be smoothly varied to increase difficulty (just increase length of bitstring) unlike arc
+This can be smoothly varied to increase difficulty unlike arc. In fact we have a number of knobs: the number of training samples to show to the solver system, the length of the training samples, and the number of categories in the samples.
