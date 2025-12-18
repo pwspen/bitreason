@@ -103,6 +103,7 @@ class Task:
 
             if correct_val_preds == self.template_len:
                 corect_outputs += 1
+
         total_vals = self.test_pairs * self.template_len
         valuewise_acc = correct_vals / total_vals
         pairwise_acc = corect_outputs / self.test_pairs
@@ -121,6 +122,10 @@ class Task:
         # Grab enough random bits to select template and fill it in
         # template_len bits for each is enough for filling in and for
         # up to 2**template_len templates
+
+        # This does NOT check for collisions, so there's a probabilistic chance that
+        # test problems appear in training
+
         seed = f"{self.name}:{int(train)}:{str(index)}"
         bits = self.get_random_bits(self.template_len * 2, seed=seed)
         template_select, bits = bits[: self.template_len], bits[self.template_len :]

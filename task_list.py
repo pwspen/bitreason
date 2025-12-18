@@ -1,7 +1,4 @@
 ### Utils
-from typing import Sequence, Callable
-from task import Register
-
 
 def to_int(bits: list[int]) -> int:
     return int("".join(str(b) for b in bits), 2)
@@ -20,7 +17,7 @@ def zero_pad(bits: list[int], left: bool = True, size: int = 16) -> list[int]:
 
 
 ### Tasks
-
+# Names of functions are extracted and used for reporting/visualization, so make them descriptive
 
 def not_(bits):
     # bitwise NOT
@@ -108,4 +105,4 @@ def gcd(bits):
     return zero_pad(to_list(a))
 
 
-tasks = [not_, and_, or_, xor, sum_, shift, flip, tile, count, separate, divisors, gcd]
+task_list = [not_, and_, or_, xor, sum_, shift, flip, tile, count, separate, divisors, gcd]

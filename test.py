@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from typing import Callable
 
-from task import TaskCollection, Pair
-from tasklist import tasks
+from tasks import TaskCollection, Pair
+from task_list import task_list
 
 
 # Simple neural network
@@ -36,7 +36,7 @@ def train_net(
     train_pairs: tuple[Pair, ...],
     eval_fn: Callable,
     task_name,
-    epochs=500,
+    epochs=100,
     test_every=10,
 ):
     net = BitNet(size=16)
@@ -65,13 +65,11 @@ def train_net(
 
             batch_loss += loss.item()
 
-        avg_loss = batch_loss / examples
+        avg_loss = batch_loss / train_samples
         losses.append(avg_loss)
         pbar.set_postfix({"Loss": f"{avg_loss:.4f}"})
 
         if epoch % test_every == 0:
-            accs = []
-            solves = 0
             with torch.no_grad():
                 solve_fn = lambda inp: tuple(
                     int(x)
@@ -91,12 +89,12 @@ def train_net(
 # Train networks and plot results
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
 print("Training networks...")
-examples = 5
-tests = 2
+train_samples = 100
+test_samples = 1000
 
-all_tasks = TaskCollection(tasks, train_samples=examples, test_samples=tests)
+all_tasks = TaskCollection(task_list, train_samples=train_samples, test_samples=test_samples)
 
-for pairs, eval_fn, task_name in tqdm(all_tasks.tasks(), desc="Overall Progress"):
+for pairs, eval_fn, task_name in tqdm(all_tasks.tasks(), desc="Tasks Completed", total=len(task_list)):
     net, losses, accuracies, solverates = train_net(
         train_pairs=pairs, eval_fn=eval_fn, task_name=task_name
     )
@@ -136,7 +134,7 @@ ax3.set_ylim(0, 1)
 ax3.grid(True, alpha=0.7)
 ax3.legend()
 
-fig.suptitle(f"Neural net per task (Train pairs: {examples} | Test pairs: {tests})")
+fig.suptitle(f"Neural net per task (Train pairs: {train_samples} | Test pairs: {test_samples})")
 
 plt.tight_layout()
 plt.savefig("training_metrics.png", dpi=300, bbox_inches="tight")
