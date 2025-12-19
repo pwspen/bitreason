@@ -27,10 +27,9 @@ from tasks import Pair, TaskCollection
 
 # Simple neural network
 class BitNet(nn.Module):
-    def __init__(self, size: int) -> None:
+    def __init__(self, size: int, hsize: int = 64, hlayers: int = 2) -> None:
         super().__init__()
-        hsize = 64
-        hlayers = 2
+
         self.net = nn.Sequential(
             nn.Linear(size, hsize),
             nn.ReLU(),
@@ -189,7 +188,7 @@ def run_config(
 
 def main() -> None:
     sweep_specs = [
-        ParameterSpec(name="train_samples", values=[10, 25, 50, 100]),
+        ParameterSpec(name="train_samples", values=[2, 5, 10, 20, 50, 100, 200, 500, 1000]),
     ]
     configs = expand_grid(sweep_specs)
 
