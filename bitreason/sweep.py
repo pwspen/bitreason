@@ -92,7 +92,10 @@ class SweepResult:
 
     def to_json(self) -> dict[str, Any]:
         return {
-            "config": {"parameters": self.config.parameters, "label": self.config.label},
+            "config": {
+                "parameters": self.config.parameters,
+                "label": self.config.label,
+            },
             "tasks": [t.to_json() for t in self.tasks],
             "aggregate": self.aggregate.to_json(),
             "started_at": self.started_at,
@@ -120,7 +123,10 @@ def load_results(path: Path) -> list[SweepResult]:
     with path.open("r", encoding="utf-8") as f:
         for line in f:
             record = json.loads(line)
-            config = RunConfig(parameters=record["config"]["parameters"], label=record["config"].get("label"))
+            config = RunConfig(
+                parameters=record["config"]["parameters"],
+                label=record["config"].get("label"),
+            )
             tasks = [
                 TaskMetrics(
                     task_name=task_rec["task_name"],
@@ -128,8 +134,14 @@ def load_results(path: Path) -> list[SweepResult]:
                     pixel_accuracy=task_rec["pixel_accuracy"],
                     pair_accuracy=task_rec["pair_accuracy"],
                     loss_curve=task_rec["loss_curve"],
-                    pixel_accuracy_curve=[(int(epoch), float(acc)) for epoch, acc in task_rec["pixel_accuracy_curve"]],
-                    pair_accuracy_curve=[(int(epoch), float(acc)) for epoch, acc in task_rec["pair_accuracy_curve"]],
+                    pixel_accuracy_curve=[
+                        (int(epoch), float(acc))
+                        for epoch, acc in task_rec["pixel_accuracy_curve"]
+                    ],
+                    pair_accuracy_curve=[
+                        (int(epoch), float(acc))
+                        for epoch, acc in task_rec["pair_accuracy_curve"]
+                    ],
                 )
                 for task_rec in record["tasks"]
             ]

@@ -37,9 +37,13 @@ class TaskCollection:
     def tasks(
         self,
     ) -> Generator[
-        tuple[tuple[Pair, ...], Callable[[Callable[[Register], Register]], tuple[float, float]], str],
+        tuple[
+            tuple[Pair, ...],
+            Callable[[Callable[[Register], Register]], tuple[float, float]],
+            str,
+        ],
         None,
-        None
+        None,
     ]:
         """
         Yields tuples of (train_samples, eval_func, task_name)
