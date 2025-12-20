@@ -3,10 +3,10 @@ from __future__ import annotations
 import time
 from typing import Callable, Sequence
 
-from sweep import AggregateMetrics, RunConfig, SweepResult, TaskMetrics
-from tasks import TaskCollection
+from minireason.sweep import AggregateMetrics, RunConfig, SweepResult, TaskMetrics
+from minireason.tasks import TaskCollection
 
-from solvers import EvalFn, Register, Solver, TrainingArtifacts
+from minireason.solvers import EvalFn, Register, Solver, TrainingArtifacts
 
 
 def _build_metrics(

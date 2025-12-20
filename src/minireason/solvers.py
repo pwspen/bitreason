@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
-from typing import Callable, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
 from tqdm import tqdm
 
-from tasks import Pair
+from minireason.tasks import Pair
+
+if TYPE_CHECKING:
+    import torch
+    from torch import nn
 
 Register = tuple[int, ...]
 SolveFn = Callable[[Register], Register]
@@ -38,25 +40,6 @@ class Solver(Protocol):
     def solve(self, inputs: Register) -> Register: ...
 
 
-class BitNet(nn.Module):
-    def __init__(self, size: int, hsize: int = 64, hlayers: int = 2) -> None:
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(size, hsize),
-            nn.ReLU(),
-            *[
-                layer
-                for _ in range(hlayers)
-                for layer in (nn.Linear(hsize, hsize), nn.ReLU(), nn.Dropout(0.01))
-            ],
-            nn.Linear(hsize, size),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
-        return self.net(x)
-
-
 class NeuralNetSolver:
     def __init__(
         self,
@@ -76,16 +59,57 @@ class NeuralNetSolver:
         self.lr = lr
         self.hsize = hsize
         self.hlayers = hlayers
-        self.net: BitNet | None = None
+        self.net: "nn.Module" | None = None
+        self._torch_imports: tuple[Any, Any, Any] | None = None
+
+    def _require_torch(self) -> tuple[Any, Any, Any]:
+        if self._torch_imports is None:
+            try:
+                import torch as torch_mod
+                import torch.nn as nn_mod
+                import torch.optim as optim_mod
+            except ImportError as exc:  # pragma: no cover - runtime guard
+                msg = (
+                    "PyTorch is required for NeuralNetSolver. "
+                    "Install with `pip install torch`."
+                )
+                raise RuntimeError(msg) from exc
+            self._torch_imports = (torch_mod, nn_mod, optim_mod)
+        return self._torch_imports
 
     def reset(self) -> None:
-        self.net = BitNet(size=self.size, hsize=self.hsize, hlayers=self.hlayers)
+        torch_mod, nn_mod, _ = self._require_torch()
+
+        class _BitNet(nn_mod.Module):
+            def __init__(self, size: int, hsize: int = 64, hlayers: int = 2) -> None:
+                super().__init__()
+                self.net = nn_mod.Sequential(
+                    nn_mod.Linear(size, hsize),
+                    nn_mod.ReLU(),
+                    *[
+                        layer
+                        for _ in range(hlayers)
+                        for layer in (
+                            nn_mod.Linear(hsize, hsize),
+                            nn_mod.ReLU(),
+                            nn_mod.Dropout(0.01),
+                        )
+                    ],
+                    nn_mod.Linear(hsize, size),
+                    nn_mod.Sigmoid(),
+                )
+
+            def forward(self, x: "torch.Tensor") -> "torch.Tensor":  # type: ignore[override]
+                return self.net(x)
+
+        self.net = _BitNet(size=self.size, hsize=self.hsize, hlayers=self.hlayers)
 
     def solve(self, inputs: Register) -> Register:
         if self.net is None:
             raise RuntimeError("Network not initialized. Call train() first.")
-        with torch.no_grad():
-            tensor_inp = torch.tensor(inputs, dtype=torch.float32)
+        torch_mod, _, _ = self._require_torch()
+        with torch_mod.no_grad():
+            tensor_inp = torch_mod.tensor(inputs, dtype=torch_mod.float32)
             pred = self.net(tensor_inp).round().int().tolist()
         return tuple(int(x) for x in pred)
 
@@ -96,11 +120,12 @@ class NeuralNetSolver:
         *,
         task_name: str | None = None,
     ) -> TrainingArtifacts:
+        torch_mod, nn_mod, optim_mod = self._require_torch()
         self.reset()
         assert self.net is not None  # for type checker
 
-        optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
-        criterion = nn.MSELoss()
+        optimizer = optim_mod.Adam(self.net.parameters(), lr=self.lr)
+        criterion = nn_mod.MSELoss()
 
         losses: list[float] = []
         pixel_curve: list[tuple[int, float]] = []
@@ -114,8 +139,8 @@ class NeuralNetSolver:
         for epoch in pbar:
             batch_loss = 0.0
             for pair in train_pairs:
-                inp_t = torch.tensor(pair.input, dtype=torch.float32)
-                out_t = torch.tensor(pair.output, dtype=torch.float32)
+                inp_t = torch_mod.tensor(pair.input, dtype=torch_mod.float32)
+                out_t = torch_mod.tensor(pair.output, dtype=torch_mod.float32)
 
                 pred = self.net(inp_t)
                 loss = criterion(pred, out_t)
@@ -161,4 +186,4 @@ class RandomGuessSolver:
         )
 
     def solve(self, inputs: Register) -> Register:
-        return tuple(torch.randint(0, 2, (len(inputs),)).tolist())
+        return tuple(random.randint(0, 1) for _ in inputs)

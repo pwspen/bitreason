@@ -4,7 +4,7 @@ from typing import Iterable
 
 import matplotlib.pyplot as plt
 
-from sweep import SweepResult
+from minireason.sweep import SweepResult
 
 
 def _extract_series(

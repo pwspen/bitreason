@@ -1,7 +1,7 @@
 import random
 
-from tasks import Register, Pair, TaskCollection
-from task_list import task_list
+from minireason.tasks import Register, TaskCollection
+from minireason.task_list import task_list
 
 def main() -> None:
     # task_list: list[Callable[[Register], Register]], Register: tuple[int, ...]
@@ -17,12 +17,7 @@ def main() -> None:
     # For each, we will generate random strings for input, then pass through hidden function to get output
     collection = TaskCollection(task_list, train_samples=10, test_samples=100)
 
-    for train_samples, eval_fn, task_name in collection.tasks(): # train_samples: list[Pair]
-        for pair in train_samples: # pair: Pair[input: Register, output: Register]
-            inp = pair.input # Register: tuple[int, ...]
-            out = pair.output # Register: tuple[int, ...]
-            # Currently both are 16 values long, values restricted to 0 or 1
-
+    for _train_samples, eval_fn, task_name in collection.tasks():
         # Define solver function using this task's inputs and outputs
         def random_solver(inputs: Register) -> Register:
             return tuple(random.randint(0, 1) for _ in inputs)

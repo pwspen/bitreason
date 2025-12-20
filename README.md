@@ -1,8 +1,10 @@
+Installation: `pip install minireason`
+
 The goal of this library is to provide a symbolic reasoning benchmark, and associated benchmarking utilities, that is very simple, easy to extend, experiment with, and has many knobs to tweak to change difficulty.
 
 Currently supports 16-bit long binary tasks, i.e., your solver system is supplied some 16-bit long inputs with corresponding 16-bit outputs, and you need to create a function f(input) -> output.
 
-Inputs are randomly generated then passed through a function to produce the output, so just by defining a function with signature Callable[[list[int]] -> list[int]], you get access to 2^length input-output pairs (65536 currently). You can easily adjust the number of train and test samples per task, see [the basic use example](bitreason/example_basic.py):
+Inputs are randomly generated then passed through a function to produce the output, so just by defining a function with signature Callable[[list[int]] -> list[int]], you get access to 2^length input-output pairs (65536 currently). You can easily adjust the number of train and test samples per task, see [the basic use example](minireason/example_basic.py):
 
 ```python
 import random
@@ -52,6 +54,6 @@ Plan to support:
 - 2D and 3D tasks (currently only 1D)
 - Task input templates (where some or all of input is set manually by humans - currently all random)
 
-Currently the main library functionality lives in [tasks.py](bitreason/tasks.py), and the small number of pre-defined tasks live as simple functions in [task_list.py](bitreason/task_list.py)
+Currently the main library functionality lives in [tasks.py](minireason/tasks.py), and the small number of pre-defined tasks live as simple functions in [task_list.py](minireason/task_list.py)
 
-See the [advanced example](bitreason/example_advanced.py) for WIP functionality including defining parameter sweeps for arbitrary models / solvers, logging training progress, and aggregating and visualizing training by task, metric, and solver.
+See the [advanced example](minireason/example_advanced.py) for WIP functionality including defining parameter sweeps for arbitrary models / solvers, logging training progress, and aggregating and visualizing training by task, metric, and solver.

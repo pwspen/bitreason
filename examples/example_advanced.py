@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from evaluation import evaluate_solver
-from solvers import NeuralNetSolver, RandomGuessSolver
-from sweep import RunConfig, SweepLogger
-from task_list import task_list
+from minireason.evaluation import evaluate_solver
+from minireason.solvers import NeuralNetSolver, RandomGuessSolver
+from minireason.sweep import RunConfig, SweepLogger
+from minireason.task_list import task_list
 
 
 def main() -> None:

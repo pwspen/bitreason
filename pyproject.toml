@@ -1,11 +1,25 @@
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
 [project]
-name = "bitreason"
+name = "minireason"
 version = "0.1.0"
-description = "Add your description here"
+description = "Symbolic reasoning playground and benchmark"
 readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Patrick Spencer", email = "patrickwspencer@gmail.com"}
+]
 requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "matplotlib>=3.10.6",
-    "torch>=2.8.0",
     "tqdm>=4.67.1",
 ]
+
+[dependency-groups]
+dev = []
