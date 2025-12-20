@@ -167,6 +167,85 @@ class NeuralNetSolver:
         )
 
 
+class PySRSolver:
+    def __init__(self, *, size: int = 16, niterations: int = 1000, name: str = "pysr"):
+        self.name = name
+        self.size = size
+        self.niterations = niterations
+        self.model: Any | None = None
+        self._pysr_regressor: Any | None = None
+
+    def _require_pysr(self) -> Any:
+        if self._pysr_regressor is None:
+            try:
+                from pysr import PySRRegressor
+            except ImportError as exc:  # pragma: no cover - runtime guard
+                msg = (
+                    "PySR is required for PySRSolver. Install with `pip install pysr`."
+                )
+                raise RuntimeError(msg) from exc
+            self._pysr_regressor = PySRRegressor
+        return self._pysr_regressor
+
+    def reset(self) -> None:
+        self.model = None
+
+    @staticmethod
+    def _bits_to_int(bits: Register) -> int:
+        bit_str = "".join(str(int(b)) for b in bits)
+        return int(bit_str, 2)
+
+    def _int_to_bits(self, value: float) -> Register:
+        max_val = (1 << self.size) - 1
+        clamped = max(0, min(int(round(value)), max_val))
+        bit_str = bin(clamped)[2:].zfill(self.size)
+        return tuple(int(ch) for ch in bit_str[-self.size :])
+
+    def solve(self, inputs: Register) -> Register:
+        if self.model is None:
+            raise RuntimeError("Model not initialized. Call train() first.")
+        input_int = self._bits_to_int(inputs)
+        pred = self.model.predict([[input_int]])
+        pred_val = float(pred[0]) if hasattr(pred, "__len__") else float(pred)
+        return self._int_to_bits(pred_val)
+
+    def train(
+        self,
+        train_pairs: tuple[Pair, ...],
+        eval_fn: EvalFn | None = None,
+        *,
+        task_name: str | None = None,
+    ) -> TrainingArtifacts:
+        PySRRegressor = self._require_pysr()
+        self.reset()
+
+        inputs = [[self._bits_to_int(pair.input)] for pair in train_pairs]
+        targets = [self._bits_to_int(pair.output) for pair in train_pairs]
+
+        self.model = PySRRegressor(niterations=self.niterations)
+        if inputs:
+            self.model.fit(inputs, targets)
+            preds = self.model.predict(inputs)
+            loss = sum(
+                (float(p) - float(t)) ** 2 for p, t in zip(preds, targets)
+            ) / len(targets)
+        else:
+            loss = float("nan")
+
+        pixel_curve: list[tuple[int, float]] = []
+        pair_curve: list[tuple[int, float]] = []
+        if eval_fn:
+            pixel_acc, pair_acc = eval_fn(self.solve)
+            pixel_curve.append((0, float(pixel_acc)))
+            pair_curve.append((0, float(pair_acc)))
+
+        return TrainingArtifacts(
+            loss_curve=[loss],
+            pixel_accuracy_curve=pixel_curve,
+            pair_accuracy_curve=pair_curve,
+        )
+
+
 class RandomGuessSolver:
     def __init__(self, *, name: str = "random_guess") -> None:
         self.name = name

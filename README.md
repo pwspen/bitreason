@@ -64,3 +64,10 @@ Plan to support:
 Currently the main library functionality lives in [tasks.py](src/minireason/tasks.py), and the small number of pre-defined tasks live as simple functions in [task_list.py](src/minireason/task_list.py)
 
 See the [advanced example](examples/example_advanced.py) for WIP functionality including defining parameter sweeps for arbitrary models / solvers, logging training progress, and aggregating and visualizing training by task, metric, and solver.
+
+Current performance of two solvers, neural network and PySR (symbolic regression library), on the full task set:
+
+![](results/examples/example_advanced.png)
+
+![](results/examples/example_advanced_pysr.png)
+
