@@ -29,7 +29,8 @@ def main() -> None:
     task_list.append(nand)
 
     # Define tasks to be used in this experiment
-    # For each, we will generate random strings for input, then pass through hidden function to get output
+    # For each, we will generate random strings for input, then
+    # pass through hidden function to get output
     collection = TaskCollection(task_list, train_samples=10, test_samples=100)
 
     for train_samples, eval_fn, task_name in collection.tasks(): # train_samples: list[Pair]
@@ -44,7 +45,8 @@ def main() -> None:
 
         # Pass solver function to task-specific eval_fn, so there can't be test data leakage
         # pixel_acc: what fraction of pixel predictions are correct?
-        # pair_acc: what fraction of output predictions are correct? (all pixels correct in one output)
+        # pair_acc: what fraction of output predictions are correct?
+        # (output prediction correct = all pixels correct in one output)
         pixel_acc, pair_acc = eval_fn(random_solver)
         print(
             f"{task_name}: pixel_accuracy={pixel_acc:.3f} pair_accuracy={pair_acc:.3f}"
