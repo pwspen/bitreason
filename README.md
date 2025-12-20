@@ -75,9 +75,9 @@ Current performance of two solvers, neural network and PySR (symbolic regression
 
 NN: 2 hidden layers of size 64, ReLU, dropout=0.01, LR=0.01
 
-The meaning of "training samples" in the below plots, and above example code, is how many "IO pairs" the solver gets to see for each task. The NN solver can learn `AND`, `XOR`, and `separate` tasks decently, but only when it gets 500 examples each, while PySR learns `NOT` perfectly even at just 2 examples, but struggles with every other task. Note that for plots, accuracy results are from using a separate test set containing 200 IO pairs, sampled from the same random distribution as the size-varying training set.
-
 [PySR](https://github.com/MilesCranmer/PySR): Converts bit vectors to integers. 50 iterations, max expression size 16, default operators.
+
+The meaning of "training samples" in the below plots, and above example code, is how many "IO pairs" the solver gets to see for each task. The NN solver can learn `AND`, `XOR`, and `separate` tasks decently, but only when it gets 500 examples each, while PySR learns `NOT` perfectly even at just 2 examples, but struggles with every other task. Note that for plots, accuracy results are from using a separate test set containing 200 IO pairs, sampled from the same random distribution as the size-varying training set.
 
 ![](results/examples/example_advanced.png)
 
