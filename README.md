@@ -1,22 +1,57 @@
-This is kinda like ARC but with some changes to make it easier to try new things.
-- One color: Only 0's and 1's
-- One dimension: Inputs and outputs are just bitstrings
-- Fixed length: Outputs always the same length as inputs (16 bits)
+The goal of this library is to provide a symbolic reasoning benchmark, and associated benchmarking utilities, that is very simple, easy to extend, experiment with, and has many knobs to tweak to change difficulty.
 
-So tasks are MUCH simpler, and you can use architectures that have fixed IO like plain old neural nets.
+Currently supports 16-bit long binary tasks, i.e., your solver system is supplied some 16-bit long inputs with corresponding 16-bit outputs, and you need to create a function f(input) -> output.
 
-There's also a big focus on automatically generating examples instead of having a human generate them manually. You define a transformation rule and some templates - where you specify which bits should be fixed (if any) and which should vary - and from there, you can generate as many training or test pairs as you like.
+Inputs are randomly generated then passed through a function to produce the output, so just by defining a function with signature Callable[[list[int]] -> list[int]], you get access to 2^length input-output pairs (65536 currently). You can easily adjust the number of train and test samples per task, see [the basic use example](bitreason/example_basic.py):
 
-This means, unlike ARC, you have the entire task-space available for each task, so you can train on more data as needed without having to go find some dataset of ARC-like tasks.
+```python
+import random
 
-ARC is great, but it's pretty complicated. Tasks have varying sizes. There are a bunch of colors that you have to decide how to deal with symmetrically. And tasks are defined manually by humans which means there's not very many of them.
+from tasks import Register, Pair, TaskCollection
+from task_list import task_list
 
-What if you want to experiment with simple fixed-IO architectures? 
+def main() -> None:
+    # task_list: list[Callable[[Register], Register]], Register: tuple[int, ...]
+    # Easily add your own
+    def nand(bits: Register) -> Register:
+        # bitwise NAND between halves, zero pad on left
+        mid = len(bits) // 2
+        return tuple(1 - (bits[i] & bits[i + mid]) for i in range(mid)) + (0,) * mid
 
-ML in general is very "throw things at wall, keep what sticks" + "if it ain't broke don't fix it". 
+    task_list.append(nand)
 
-The goal here is to provide a playground to build intuition and evidence for how ARC-like reasoning works.
+    # Define tasks to be used in this experiment
+    # For each, we will generate random strings for input, then pass through hidden function to get output
+    collection = TaskCollection(task_list, train_samples=10, test_samples=100)
 
-If you make a model for ARC and it works well it might be pretty opaque. What parts of it contribute to its success? The goal here is to give you ways to examine that.
+    for train_samples, eval_fn, task_name in collection.tasks(): # train_samples: list[Pair]
+        for pair in train_samples: # pair: Pair[input: Register, output: Register]
+            inp = pair.input # Register: tuple[int, ...]
+            out = pair.output # Register: tuple[int, ...]
+            # Currently both are 16 values long, values restricted to 0 or 1
 
-This can be smoothly varied to increase difficulty unlike arc. In fact we have a number of knobs: the number of training samples to show to the solver system, the length of the training samples, and the number of categories in the samples.
+        # Define solver function using this task's inputs and outputs
+        def random_solver(inputs: Register) -> Register:
+            return tuple(random.randint(0, 1) for _ in inputs)
+
+        # Pass solver function to task-specific eval_fn, so there can't be test data leakage
+        # pixel_acc: what fraction of pixel predictions are correct?
+        # pair_acc: what fraction of output predictions are correct? (all pixels correct in one output)
+        pixel_acc, pair_acc = eval_fn(random_solver)
+        print(
+            f"{task_name}: pixel_accuracy={pixel_acc:.3f} pair_accuracy={pair_acc:.3f}"
+        )
+
+if __name__ == "__main__":
+    main()
+```
+
+Plan to support:
+- Arbitrary lengths in input and output (currently 16), and differing input/output lengths
+- Arbitrary number of categories (currently 2)
+- 2D and 3D tasks (currently only 1D)
+- Task input templates (where some or all of input is set manually by humans - currently all random)
+
+Currently the main library functionality lives in [tasks.py](bitreason/tasks.py), and the small number of pre-defined tasks live as simple functions in [task_list.py](bitreason/task_list.py)
+
+See the [advanced example](bitreason/example_advanced.py) for WIP functionality including defining parameter sweeps for arbitrary models / solvers, logging training progress, and aggregating and visualizing training by task, metric, and solver.
