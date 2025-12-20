@@ -4,7 +4,7 @@ The goal of this library is to provide a symbolic reasoning benchmark, and assoc
 
 Currently supports 16-bit long binary tasks, i.e., your solver system is supplied some 16-bit long inputs with corresponding 16-bit outputs, and you need to create a function f(input) -> output.
 
-Inputs are randomly generated then passed through a function to produce the output, so just by defining a function with signature Callable[[list[int]] -> list[int]], you get access to 2^length input-output pairs (65536 currently). You can easily adjust the number of train and test samples per task, see [the basic use example](examples/example_basic.py):
+Inputs are randomly generated then passed through a function to produce the output, so just by defining a function with signature Callable[[list[int]] -> list[int]], you get access to 2^length input-output pairs (65536 currently). You can easily adjust the number of train and test samples per task, see [the basic use example](examples/basic.py):
 
 ```python
 import random
@@ -63,9 +63,13 @@ Plan to support:
 
 Currently the main library functionality lives in [tasks.py](src/minireason/tasks.py), and the small number of pre-defined tasks live as simple functions in [task_list.py](src/minireason/task_list.py)
 
-See the [advanced example](examples/example_advanced.py) for WIP functionality including defining parameter sweeps for arbitrary models / solvers, logging training progress, and aggregating and visualizing training by task, metric, and solver.
+See the [advanced example](examples/nn_sweep.py) for WIP functionality including defining parameter sweeps for arbitrary models / solvers, logging training progress, and aggregating and visualizing training by task, metric, and solver.
 
-Current performance of two solvers, neural network and PySR (symbolic regression library), on the full task set:
+Current performance of two solvers, neural network and PySR (symbolic regression library), on the full task set is below.
+
+NN: 2 hidden layers of size 64, ReLU, dropout=0.01, LR=0.01
+
+[PySR](https://github.com/MilesCranmer/PySR): Converts bit vectors to integers. 50 iterations, max size 16, default operators.
 
 ![](results/examples/example_advanced.png)
 
