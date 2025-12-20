@@ -46,6 +46,13 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# results: 
+# not_: pixel_accuracy=0.499 pair_accuracy=0.000
+# and_: pixel_accuracy=0.482 pair_accuracy=0.000
+# or_: pixel_accuracy=0.500 pair_accuracy=0.000
+# xor: pixel_accuracy=0.482 pair_accuracy=0.000
+# ...
 ```
 
 Plan to support:
